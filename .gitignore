@@ -1,0 +1,5 @@
+﻿*.asv
+*.mat
+*.wav
+room_rir_8ch_*
+.DS_Store

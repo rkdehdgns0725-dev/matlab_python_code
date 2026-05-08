@@ -1,0 +1,9 @@
+Fs = 96000;%Hz
+s = 0.1;%sec
+ondo = 25;%C
+v = 331 + 0.6*ondo; % 音速[m/s]
+d_m = 0.01; % distance of mic リニアアレイのマイク間隔[m]
+file_of_random_noise_name='';%random noise 5000Hz
+mic_degr = -90:10:90;  
+ch_num = 8;
+ch_centered = 5;

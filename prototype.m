@@ -3,9 +3,9 @@ clc;clear;close all;
 
 [noise,noise_fs]=audioread('C:\Users\hsm15\OneDrive - 창원대학교\デスクトップ\matlab_code\ongen\white_gaussian_noise.wav');
 [t_sound,fs]=audioread('C:\Users\hsm15\OneDrive - 창원대학교\デスクトップ\matlab_code\ongen\siyouongen.wav');
-load('C:\Users\hsm15\OneDrive - 창원대학교\デスクトップ\matlab_code\simulated_rir\room_rir_8ch_0.1_-90_90_19.mat');
+load('C:\Users\hsm15\OneDrive - 창원대학교\デスクトップ\matlab_code\simulated_rir\room_rir_8ch_0.5_-90_90_19.mat');
 fs=double(fs);
-target_SNR_dB = 0;
+target_SNR_dB = 12;
 c=343;%m/s
 
 
@@ -25,7 +25,7 @@ mic_ch=num_mics;
 num_sources = size(source_pos_t, 2); %c 19
 gouseionseibako = cell(num_mics, 1);
 co_micarray = mean(mic_pos, 2); % 마이크 어레이 중심 (3 x 1)
-
+noise_ongen_ichi=[1];
 
 
 %%
@@ -33,7 +33,7 @@ co_micarray = mean(mic_pos, 2); % 마이크 어레이 중심 (3 x 1)
 
 s_o_r=size(rir);%[8,19] 마이크 8채널 / 음원 19개위치
 
-centered_0_ongen=(s_o_r(2)+1)/2; %10번 마이크가 중심
+centered_0_ongen=(s_o_r(2)+1)/2; %10번 음원이 중심
 
 noise_rir_conv_source=cell(s_o_r); %rir이 적용된 noise신호
 t_sound_rir_conv_source=cell(s_o_r(1),1);%rir이 적용된 target_sound 신호
@@ -71,7 +71,7 @@ pad_len=max(saidaichi)
 t_sound_padded = [t_sound; zeros(pad_len, 1)];
 noise_padded=[scaled_noise;zeros(pad_len,1)];
 for i=1:length(rir(:,1))
-    t_sound_rir_conv_source{i,1}=fftfilt(rir{i,centered_0_ongen},t_sound_padded);
+    t_sound_rir_conv_source{i,1}=fftfilt(rir{i,centered_0_ongen},t_sound_padded);%음원10번채널 모노음성
 end
 
 for i=1:length(rir(:,1))
@@ -120,8 +120,8 @@ audio_to_play = double(t_sound_rir_conv_source{1,1});
 %음성합성
 for i = 1:num_mics
     % 혹시 모를 가로/세로 벡터 오류를 막기 위해 (:) 사용 (무조건 열벡터로)
-    sig_n = noise_rir_conv_source{i, 1}(:);
-    sig_t = t_sound_rir_conv_source{i, 1}(:);
+    sig_n = noise_rir_conv_source{i, noise_ongen_ichi(1,1)}(:);%1번 음원채널의 노이즈(모노)
+    sig_t = t_sound_rir_conv_source{i, 1}(:);%10번음원채널의 음성(모노)
     
     minimi = min(length(sig_n), length(sig_t));
     gouseionseibako{i, 1} = sig_n(1:minimi) + sig_t(1:minimi);

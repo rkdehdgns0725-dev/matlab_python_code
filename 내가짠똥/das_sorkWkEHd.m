@@ -1,4 +1,4 @@
-Delay And Sum
+% Delay And Sum
 % 전치 확인: source_pos_t (3 x 19), mic_pos (3 x 8)
 beam_target=10;
 

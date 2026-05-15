@@ -113,7 +113,7 @@ for i = 1:length(fc)
     lpf{i} = fir1(N, fc(i)/(fs/2));
 end
 
-%% 3. 차분을 통한 서브밴드 필터(BPF) 생성
+%% 差分フィルタ
 filters = cell(1, 7);
 filters{1} = lpf{1};                             % 0 ~ 300Hz
 filters{2} = lpf{2} - lpf{1};                    % 300 ~ 500Hz
@@ -121,9 +121,10 @@ filters{3} = lpf{3} - lpf{2};                    % 500 ~ 1000Hz
 filters{4} = lpf{4} - lpf{3};                    % 1000 ~ 1500Hz
 filters{5} = lpf{5} - lpf{4};                    % 1500 ~ 2000Hz
 filters{6} = lpf{6} - lpf{5};                    % 2000 ~ 3000Hz
-% 마지막 필터는 전체(델타 함수)에서 이전 LPF를 뺌
+
 unit_impulse = zeros(1, N+1); unit_impulse(N/2 + 1) = 1; 
 filters{7} = unit_impulse - lpf{6};              % 3000Hz ~ Nyquist
+% 마지막 필터는 전체(델타 함수)에서 이전 LPF를 뺌
 
 %% 4. 신호 적용 및 완전 재구성 확인
 % inputSignal: [Length x 8ch] 마이크 신호라 가정

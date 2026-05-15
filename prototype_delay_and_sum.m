@@ -34,7 +34,7 @@ hikakuyou = mean(cell2mat(gouseionseibako'), 2);
 
 
 % --- 2. 올바른 Delay-and-Sum (DAS) 구현 ---
-target_angle_idx = 10; 
+target_angle_idx = 3; 
 target_delays = delay_sample(:, target_angle_idx);
 
 % 1. 각 마이크가 '가장 늦은 마이크'에 맞추기 위해 뒤로 밀려야 하는 양 (항상 0 이상)
@@ -80,21 +80,21 @@ for angle_idx = 1:num_sources
     scan_delays = delay_sample(:, angle_idx);
     
     % 지연 보상량 계산
-    shifts = max(scan_delays) - scan_delays; 
-    total_pad_needed = max(shifts);
+    steered_shifts = max(scan_delays) - scan_delays; 
+    total_pad_needed = max(steered_shifts);
     
     dna_scan = cell(num_mics, 1);
     for i = 1:num_mics
-        pad_front = shifts(i);
+        pad_front = steered_shifts(i);
         pad_back = total_pad_needed - pad_front;
         % original_sig = gouseionseibako{i, 1};%분석할 음원
-        original_sig = t_sound_rir_conv_source{i, 1};%분석할 음원
+        original_sig = t_sound_rir_conv_source{i, 1};%분석할 음원(8x1)
 
-        dna_scan{i, 1} = [zeros(pad_front, 1); original_sig; zeros(pad_back, 1)];
+        dna_scan{i, 1} = [zeros(pad_front, 1); original_sig; zeros(pad_back, 1)];%앞에는 필요한만큼, 뒤에는 패딩길이 모두 동일하게 맞추기용
     end
     
     % 스캔된 방향으로의 출력 신호
-    steered_signal = mean(cell2mat(dna_scan'), 2);
+    steered_signal = mean(cell2mat(dna_scan'), 2);%8x1->1x8->Nx8->Nx1
     
     % % 추가: 2000Hz 이상 고주파수 대역만 필터링해서 확인해보기
     % steered_signal_high = highpass(steered_signal, 2000, fs);

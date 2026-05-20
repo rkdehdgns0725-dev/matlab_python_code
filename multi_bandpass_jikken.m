@@ -40,7 +40,7 @@ end
 % inputSignal: [Length x 8ch] 마이크 신호라 가정
 band_signals = cell(1, 7);
 for b = 1:7
-    band_signals{b} = filter(filters{b}, 1, inputSignal);
+    band_signals{b} = filter(filters{b},1, inputSignal);%(분자, 분모(FIR)계수, 필터링할 신호)
 end
 
 % 모든 밴드 합산 (Reconstruction)

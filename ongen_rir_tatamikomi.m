@@ -1,18 +1,19 @@
 clc;clear;close all;
+fc = [500, 1000, 2000, 4000, 8000, 16000]; %lpf의 컷오프 주파수 ~fs/2까지
 
 
 [noise,noise_fs]=audioread('C:\Users\hsm15\OneDrive - 창원대학교\デスクトップ\matlab_code\ongen\white_gaussian_noise.wav');
 [t_sound,fs]=audioread('C:\Users\hsm15\OneDrive - 창원대학교\デスクトップ\matlab_code\ongen\siyouongen.wav');
-load('C:\Users\hsm15\OneDrive - 창원대학교\デスクトップ\matlab_code\simulated_rir\room_rir_8ch_0.5_-90_90_19.mat');
+load('C:\Users\hsm15\OneDrive - 창원대학교\デスクトップ\matlab_code\simulated_rir\room_rir_8ch_0.0_-90_90_19.mat');
 fs=double(fs);
-target_SNR_dB = 12;
+target_SNR_dB = 6;
 c=343;%m/s
-
+num_bands=length(fc)+1;
 
 room_rt=rt60(cell2mat(rir(1,10)),fs)
 
 start_time=fs*10;%10초부터
-end_time=fs*30;%30초까지
+end_time=fs*11;%11초까지
 
 t_sound_mono = mean(t_sound, 2); 
 noise_mono = mean(noise, 2);
@@ -127,3 +128,33 @@ for i = 1:num_mics
     gouseionseibako{i, 1} = sig_n(1:minimi) + sig_t(1:minimi);
 end
 
+
+
+%%
+%서브밴드처리=> 밴드패스된 7ch cell데이터를 8x19행렬로
+    %% 1. 파라미터 설정
+     % 샘플링 주파수 (예시)
+    N = 50;    % 필터 차수 (짝수 권장, 높을수록 날카로움)
+    % 나카지마 논문 기반 예시 주파수 (6개 경계 -> 7개 대역)
+    fc = [500, 1000, 2000, 3000, 6000, 12000]; 
+    inputSignal=cell2mat(t_sound_rir_conv_source');
+    
+    
+    %% 2. LPF 설계 (fir1 사용)
+    % 모든 필터는 동일한 차수 N을 가져야 위상 지연이 일치하여 PR이 가능함
+lpf = cell(1, length(fc));
+for i = 1:length(fc)
+    lpf{i} = fir1(N, fc(i)/(fs/2));
+end
+    
+directivity_target=noise_rir_conv_source;%각도별로 재생할 음원
+
+bandpassed_dataset=cell(mic_ch,num_sources);%8x19, 각 셀에는 1x7의 밴드패스된 셀이 격납
+for i=1:num_sources
+    for j=1:mic_ch
+        bpsignal=BPFilt_viaLPF(directivity_target(j,i),fs,fc,lpf,N,0);
+        bandpassed_dataset{j,i}=bpsignal;%{}로 안넣으면 셀에 격납 안됨
+    end
+end
+
+% for문으로 다시합쳐서 퍼펙트리컨스트럭트 확인

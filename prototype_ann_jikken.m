@@ -19,7 +19,7 @@ max(clean_audio)
 % clean_audio=bandpass(clean_audio,[300,3000],fs);
 % 6. 오디오 파일로 저장
 
-soundsc(clean_audio, fs);
+% soundsc(clean_audio, fs);
 % soundsc(saishuonsei,fs);
 
 
@@ -164,3 +164,19 @@ fprintf(' Target |    %10.2e      |    %10.2e      \n', DS_e_targetpow, NN_e_tar
 fprintf(' Interf |    %10.2e      |    %10.2e      \n', DS_e_interfpow, NN_e_interfpow);
 fprintf(' Artif  |    %10.2e      |    %10.2e      \n', DS_e_artifpow, NN_e_artifpow);
 fprintf('======================================================\n');
+
+nnsig_length=length(steered_signal);
+
+% FFT 계산
+fft_nnsig = fft(steered_signal);
+P2 = abs(fft_nnsig/nnsig_length);
+P1 = P2(1:floor(nnsig_length/2)+1);
+P1(2:end-1) = P1(2:end-1);
+f = fs*(0:(nnsig_length/2))/nnsig_length;
+
+plot(f, P1);
+grid on;
+title(['Channel']);
+xlabel('주파수 (Hz)');
+ylabel('Magnitude');
+xlim([0 fs/2]); % 0~100Hz 범위 표시

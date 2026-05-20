@@ -1,4 +1,3 @@
-
 % X_train: 입력 데이터, Y_train: 교사 데이터
 X_train = []; Y_train = [];
 
@@ -14,15 +13,11 @@ for ang = 1:num_sources
     % 데이터를 아래로 계속 쌓음
     X_train = [X_train; current_input];
     Y_train = [Y_train; current_target];
+
 end
 % X_train=X_train';
 % Y_train=Y_train';
 
-for ang= 1:num_sources
-    
-
-
-end
 
 learning = 10;
 maxEpochs = learning;     %エポック数（学習回数）                      <------ 学習回数
@@ -56,7 +51,7 @@ layers = [ ...
 
     fullyConnectedLayer(outputSize, Bias = zeros(outputSize, 1), BiasLearnRateFactor = 0)
     reluLayer
-    
+
     fullyConnectedLayer(outputSize, Bias = zeros(outputSize, 1), BiasLearnRateFactor = 0)
     reluLayer
 

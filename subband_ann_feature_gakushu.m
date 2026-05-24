@@ -8,15 +8,15 @@ maxEpochs = learning;     %エポック数（学習回数）                    
 maxEpochs2 = learning;
 
 inputSize = num_mics;      %入力数
-outputSize = 32;  %中間層のユニット数                       <-------隠れユニット数 
+outputSize = 128;  %中間層のユニット数                       <-------隠れユニット数 
 numResponses = 1;   %全結合層の出力層
 
 
 % === Ttrainnet ===%
 options = trainingOptions("adam", ... 
-    InitialLearnRate = 0.005, ... % 正規化されているので高めでもOK
+    InitialLearnRate = 0.01, ... % 正規化されているので高めでもOK
     MaxEpochs = maxEpochs, ...
-    miniBatchSize = 1, ...    
+    miniBatchSize = 1024, ...    
     GradientThreshold = 1, ...
     Plots="training-progress", ...
     Shuffle = 'every-epoch', ...
@@ -102,21 +102,23 @@ for band_idx = 1:num_bands
     % [중요] 매트랩 Sequence 학습을 위해 차원 뒤집기
     % X: [총 샘플수 x 8] -> [8 x 총 샘플수]
     % Y: [총 샘플수 x 1] -> [1 x 총 샘플수]
-    X_train_final = (X_train_concat/global_max)'; 
-    Y_train_final = (Y_train_concat/global_max)'; 
-    chunkSize = 100; % 미니배치 사이즈와 맞추면 좋습니다
+    X_train_final = (X_train_concat/global_max); 
+    Y_train_final = (Y_train_concat/global_max); 
 
-    % 데이터를 [8 x 총샘플수]에서 [8 x chunkSize] 조각들로 쪼갭니다.
-    % mat2cell은 지정된 길이로 행렬을 싹둑 자릅니다.
-    numChunks = floor(size(X_train_final, 2) / chunkSize);
-    X_cell = mat2cell(X_train_final(:, 1:numChunks*chunkSize), 8, chunkSize*ones(1, numChunks))';
-    Y_cell = mat2cell(Y_train_final(:, 1:numChunks*chunkSize), 1, chunkSize*ones(1, numChunks))';
-    % ----------------------------------------------------
+    
+    % chunkSize = 100; % 미니배치 사이즈와 맞추면 좋습니다
+    % 
+    % % 데이터를 [8 x 총샘플수]에서 [8 x chunkSize] 조각들로 쪼갭니다.
+    % % mat2cell은 지정된 길이로 행렬을 싹둑 자릅니다.
+    % numChunks = floor(size(X_train_final, 2) / chunkSize);
+    % X_cell = mat2cell(X_train_final(:, 1:numChunks*chunkSize), 8, chunkSize*ones(1, numChunks))';
+    % Y_cell = mat2cell(Y_train_final(:, 1:numChunks*chunkSize), 1, chunkSize*ones(1, numChunks))';
+    % % ----------------------------------------------------
     % 네트워크 레이어 설정 및 학습
     % ----------------------------------------------------
     layers = [
-        % featureInputLayer(inputSize)
-        sequenceInputLayer(inputSize)
+        featureInputLayer(inputSize)
+        % sequenceInputLayer(inputSize)
 
         fullyConnectedLayer(outputSize, Bias = zeros(outputSize, 1), BiasLearnRateFactor = 0)
         reluLayer
@@ -132,8 +134,8 @@ for band_idx = 1:num_bands
     % options = ... 
     
     % 각 밴드별 독립 네트워크 학습 후 셀에 저장
-    % networks{band_idx} = trainNetwork(X_train_final, Y_train_final, layers, options);
-    networks{band_idx} = trainNetwork(X_cell, Y_cell, layers, options);
+    networks{band_idx} = trainNetwork(X_train_final, Y_train_final, layers, options);
+    % networks{band_idx} = trainNetwork(X_cell, Y_cell, layers, options);
 
 end
 

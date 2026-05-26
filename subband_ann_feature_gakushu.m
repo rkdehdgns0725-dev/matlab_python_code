@@ -3,12 +3,12 @@
 % =========================================================================
 
 
-learning = 10;
+learning = 1;
 maxEpochs = learning;     %エポック数（学習回数）                      <------ 学習回数
 maxEpochs2 = learning;
 
 inputSize = num_mics;      %入力数
-outputSize = 128;  %中間層のユニット数                       <-------隠れユニット数 
+outputSize = 256;  %中間層のユニット数                       <-------隠れユニット数 
 numResponses = 1;   %全結合層の出力層
 
 
@@ -16,7 +16,7 @@ numResponses = 1;   %全結合層の出力層
 options = trainingOptions("adam", ... 
     InitialLearnRate = 0.01, ... % 正規化されているので高めでもOK
     MaxEpochs = maxEpochs, ...
-    miniBatchSize = 1024, ...    
+    miniBatchSize = 2048, ...    
     GradientThreshold = 1, ...
     Plots="training-progress", ...
     Shuffle = 'every-epoch', ...
@@ -123,7 +123,7 @@ for band_idx = 1:num_bands
         fullyConnectedLayer(outputSize, Bias = zeros(outputSize, 1), BiasLearnRateFactor = 0)
         reluLayer
     
-        fullyConnectedLayer(outputSize, Bias = zeros(outputSize, 1), BiasLearnRateFactor = 0)
+        fullyConnectedLayer(outputSize/2, Bias = zeros(outputSize/2, 1), BiasLearnRateFactor = 0)
         reluLayer
     
         fullyConnectedLayer(numResponses, Bias = 0, BiasLearnRateFactor = 0)
@@ -140,4 +140,4 @@ for band_idx = 1:num_bands
 end
 
 disp('✅ 7개 밴드 네트워크 학습 모두 완료!');
-save('NNBF_learningdata_',net,global_max)
+save('NNBF_learningdata_','networks','global_max')

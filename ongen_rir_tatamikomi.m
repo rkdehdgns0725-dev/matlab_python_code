@@ -1,6 +1,6 @@
 clc;clear;close all;
 fc = [500, 1000, 2000, 4000, 8000, 16000]; %lpf의 컷오프 주파수 ~fs/2까지
-
+N = 200;    % 필터 차수 (짝수 권장, 높을수록 날카로움)
 
 [noise,noise_fs]=audioread('C:\Users\hsm15\OneDrive - 창원대학교\デスクトップ\matlab_code\ongen\white_gaussian_noise.wav');
 [t_sound,fs]=audioread('C:\Users\hsm15\OneDrive - 창원대학교\デスクトップ\matlab_code\ongen\siyouongen.wav');
@@ -134,9 +134,7 @@ end
 %서브밴드처리=> 밴드패스된 7ch cell데이터를 8x19행렬로
     %% 1. 파라미터 설정
      % 샘플링 주파수 (예시)
-    N = 50;    % 필터 차수 (짝수 권장, 높을수록 날카로움)
     % 나카지마 논문 기반 예시 주파수 (6개 경계 -> 7개 대역)
-    fc = [500, 1000, 2000, 3000, 6000, 12000]; 
     inputSignal=cell2mat(t_sound_rir_conv_source');
     
     

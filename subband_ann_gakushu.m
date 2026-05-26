@@ -138,4 +138,4 @@ for band_idx = 1:num_bands
 end
 
 disp('✅ 7개 밴드 네트워크 학습 모두 완료!');
-save('NNBF_learningdata_',net,global_max)
+save('NNBF_learningdata_','networks','global_max')

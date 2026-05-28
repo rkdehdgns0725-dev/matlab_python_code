@@ -5,7 +5,7 @@ directivity_target=noise_rir_conv_source;%각도별로 재생할 음원
 
 
 
-load('NNBF_learningdata_feature.mat')%rt60_noise
+load('NNBF_learningdata_v2.mat')%rt60_noise
 % 2. 테스트용 섞인 신호 준비 [N x 8]
 test_signal = t_sound_rir_conv_source(:,1) ; 
 % test_signal = cell2mat(gouseionseibako(:,1)') ; 
@@ -18,11 +18,12 @@ tl=length(bpsig_to_net{1,1});%신호길이
 subband_saishu_onsei=zeros(tl,num_bands);%서브밴드 처리된 음성저장용
 for band_idx=1:num_bands %지금 상태에선 2~4번밴드만 합쳤을 때 가장 성능이 좋은거같다?
     %  🚨 불러온 data_max로 정규화 수행
-    test_input_norm=bpsig_to_net{1,band_idx}/ global_max;
+    test_input_norm=bpsig_to_net{1,band_idx}/ global_max{band_idx};
     max(test_input_norm,[],"all")
-    subband_saishu_onsei(:,band_idx)=predict(networks{band_idx},test_input_norm);
+    subband_saishu_onsei(:,band_idx)=predict(networks{band_idx},test_input_norm)*global_max{band_idx};
+
 end
-clean_audio=sum(subband_saishu_onsei*global_max,2);
+clean_audio=sum(subband_saishu_onsei,2);
 
 % 5. 원래 볼륨으로 복원
 max(clean_audio)
@@ -114,7 +115,7 @@ end
 for angle_idx = 1:num_sources
     dna_scan = cell(1, num_mics);
     for i = 1:num_mics
-        dna_scan{1,i} = directivity_target{i,angle_idx}(:)/global_max;
+        dna_scan{1,i} = directivity_target{i,angle_idx}(:);
     end
     
     dna_scan = BPFilt_viaLPF(dna_scan', fs, fc, lpf, N, 0);
@@ -124,8 +125,8 @@ for angle_idx = 1:num_sources
     
     for band_idx = 1:num_bands
         % 네트워크를 통한 각도별 신호 추정 및 스케일 복원 [N x 1]
-        steered_subband = predict(networks{band_idx}, dna_scan{1,band_idx});
-        steered_subband = global_max * steered_subband;
+        steered_subband = predict(networks{band_idx}, dna_scan{1,band_idx}/global_max{band_idx,1});
+        steered_subband = global_max{band_idx,1} * steered_subband;
         
         % 시간 영역에서 전체 대역 신호로 누적 (위에서 소리 들을 때 sum한 것과 동일)
         steered_fullband = steered_fullband + steered_subband;

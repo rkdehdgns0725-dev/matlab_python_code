@@ -14,7 +14,7 @@ numResponses = 1;   %全結合層の出力層
 
 % === Ttrainnet ===%
 options = trainingOptions("adam", ... 
-    InitialLearnRate = 0.01, ... % 正規化されているので高めでもOK
+    InitialLearnRate = 0.001, ... % 正規化されているので高めでもOK
     MaxEpochs = maxEpochs, ...
     miniBatchSize = 2048, ...    
     GradientThreshold = 1, ...
@@ -59,9 +59,8 @@ fprintf('데이터 재배치 완료: %d개 밴드에 대해 각각 %d개 각도�
 all_data_matrix = cell2mat([train_subbands{:}]); 
 
 % 2. 이제 순수한 숫자형 행렬이 되었으므로 'all' 옵션으로 완벽한 글로벌 최댓값을 찾습니다.
-global_max = max(all_data_matrix, [], 'all');
+global_max =cell(num_bands,1);
 
-fprintf('데이터 내 최종 글로벌 맥스치: %f\n', global_max);% X_train: 입력 데이터, Y_train: 교사 데이터
 % 전체 데이터를 관통하는 가장 큰 값으로 글로벌 정규화 (루프 밖에서 1회만 수행)
 % 이미 이전 코드에서 global_max를 구했다고 가정합니다.
 % train_subbands = train_subbands / global_max; 
@@ -102,8 +101,11 @@ for band_idx = 1:num_bands
     % [중요] 매트랩 Sequence 학습을 위해 차원 뒤집기
     % X: [총 샘플수 x 8] -> [8 x 총 샘플수]
     % Y: [총 샘플수 x 1] -> [1 x 총 샘플수]
-    X_train_final = (X_train_concat/global_max); 
-    Y_train_final = (Y_train_concat/global_max); 
+    band_max = max(abs(X_train_concat), [], 'all'); 
+    if band_max == 0; band_max = 1; end % 0 나누기 방지
+    
+    X_train_final = X_train_concat / band_max; 
+    Y_train_final = Y_train_concat / band_max;
 
     
     % chunkSize = 100; % 미니배치 사이즈와 맞추면 좋습니다
@@ -120,11 +122,13 @@ for band_idx = 1:num_bands
         featureInputLayer(inputSize)
         % sequenceInputLayer(inputSize)
 
-        fullyConnectedLayer(outputSize, Bias = zeros(outputSize, 1), BiasLearnRateFactor = 0)
-        reluLayer
+        fullyConnectedLayer(outputSize)
+        leakyReluLayer(0.01)
+        % ReluLayer
     
-        fullyConnectedLayer(outputSize/2, Bias = zeros(outputSize/2, 1), BiasLearnRateFactor = 0)
-        reluLayer
+        fullyConnectedLayer(outputSize/2)
+        leakyReluLayer(0.01)
+        % ReluLayer
     
         fullyConnectedLayer(numResponses, Bias = 0, BiasLearnRateFactor = 0)
         regressionLayer('Name', 'rmse_loss')
@@ -136,8 +140,12 @@ for band_idx = 1:num_bands
     % 각 밴드별 독립 네트워크 학습 후 셀에 저장
     networks{band_idx} = trainNetwork(X_train_final, Y_train_final, layers, options);
     % networks{band_idx} = trainNetwork(X_cell, Y_cell, layers, options);
-
+    global_max{band_idx,1}=band_max
 end
 
 disp('✅ 7개 밴드 네트워크 학습 모두 완료!');
-save('NNBF_learningdata_','networks','global_max')
+save('NNBF_learningdata_v2','networks','global_max')
+%%
+%global max를 없애고, 각 밴드별 max값으로 구하면 괜찮지않냐
+%6번 7번밴드만 RMSE천천히 줄어드는게 이유가 있지않을까... 주파수대역이 넓어서 정보도 많나?
+%leakageRelulayer를 없애고 Relu로 다시 해봤을떄 어떻게나오는지 확인하기

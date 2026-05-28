@@ -4,16 +4,16 @@ N = 200;    % 필터 차수 (짝수 권장, 높을수록 날카로움)
 
 [noise,noise_fs]=audioread('C:\Users\hsm15\OneDrive - 창원대학교\デスクトップ\matlab_code\ongen\white_gaussian_noise.wav');
 [t_sound,fs]=audioread('C:\Users\hsm15\OneDrive - 창원대학교\デスクトップ\matlab_code\ongen\siyouongen.wav');
-load('C:\Users\hsm15\OneDrive - 창원대학교\デスクトップ\matlab_code\simulated_rir\room_rir_8ch_0.0_-90_90_19.mat');
+load('C:\Users\hsm15\OneDrive - 창원대학교\デスクトップ\matlab_code\simulated_rir\room_rir_8ch_0.1_-90_90_19.mat');
 fs=double(fs);
-target_SNR_dB = 12;
+target_SNR_dB = 0;
 c=343;%m/s
 num_bands=length(fc)+1;
 
 room_rt=rt60(cell2mat(rir(1,10)),fs)
 
 start_time=fs*10;%10초부터
-end_time=fs*15;%11초까지
+end_time=fs*11;%11초까지
 
 t_sound_mono = mean(t_sound, 2); 
 noise_mono = mean(noise, 2);
@@ -97,7 +97,7 @@ max_noise = max(abs(noise_mat), [], 'all');
 max_target = max(abs(target_mat), [], 'all');
 
 overall_max = max(max_noise, max_target)
-scale_factor=0.9/overall_max;
+scale_factor=1/overall_max;
 
 
 % scale_factor는 아까 구한 단 하나의 숫자(상수)라고 가정합니다.
@@ -116,7 +116,7 @@ max_target = max(abs(target_mat), [], 'all');
 overall_max = max(max_noise, max_target)
 %%
 audio_to_play = double(t_sound_rir_conv_source{1,1});
-sound(audio_to_play,single(fs));
+% sound(audio_to_play,single(fs));
 %%
 %음성합성
 for i = 1:num_mics

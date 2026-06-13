@@ -14,6 +14,8 @@ room_rt=rt60(cell2mat(rir(1,10)),fs)
 
 start_time=fs*10;%10초부터
 end_time=fs*11;%11초까지
+% start_time=fs*5;
+% end_time=fs*20;
 
 t_sound_mono = mean(t_sound, 2); 
 noise_mono = mean(noise, 2);

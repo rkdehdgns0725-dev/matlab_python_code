@@ -1,15 +1,15 @@
-
+load('NNBF_learningdata_subband_N1.5.mat')%rt60_noise
 centered_mic_num=5;
 directivity_target=noise_rir_conv_source;%각도별로 재생할 음원
 % directivity_target=t_sound_rir_conv_source_8_18;%각도별로 재생할 음원
 
 
 
-load('NNBF_learningdata_v2.mat')%rt60_noise
+
 % 2. 테스트용 섞인 신호 준비 [N x 8]
-test_signal = t_sound_rir_conv_source(:,1) ; 
+% test_signal = t_sound_rir_conv_source(:,1) ; 
 % test_signal = cell2mat(gouseionseibako(:,1)') ; 
-% test_signal = gouseionseibako(:,1) ; 
+test_signal = gouseionseibako(:,1) ; 
 
 bpsig_to_net=BPFilt_viaLPF(test_signal,fs,fc,lpf,N,1);
 
@@ -25,7 +25,7 @@ for band_idx=1:num_bands %지금 상태에선 2~4번밴드만 합쳤을 때 가�
 end
 clean_audio=sum(subband_saishu_onsei,2);
 
-% 5. 원래 볼륨으로 복원
+
 max(clean_audio)
 
 % clean_audio=bandpass(clean_audio,[300,3000],fs);
@@ -86,8 +86,8 @@ imagesc(angles_deg, f, DS_Gain_Matrix_dB');
 set(gca, 'YDir', 'normal'); 
 
 % 색상은 기본 parula(최신 매트랩 논문 표준) 또는 gray 사용
-colormap parula; % 또는 colormap gray;
-colorbar;
+    colormap parula; % 또는 colormap gray;
+    colorbar;
 caxis([-80 0]); % -30dB 이하는 뭉뚱그림
 
 xlabel('Angle (Degrees)', 'FontWeight', 'bold');
@@ -168,26 +168,53 @@ ylabel('Frequency (Hz)', 'FontWeight', 'bold');
 title('DNNBF Spatial Frequency Beampattern', 'FontWeight', 'bold');
 ylim([0 fs/2]); 
 
-for band_idx=1:num_bands
+% for band_idx=1:num_bands
+%     BPF_NN_Gain_Matrix_dB = 20 * log10(BPF_NN_Gain_Matrix{1,band_idx} / max(BPF_NN_Gain_Matrix{1,band_idx},[],"all"));
+%     figure('Name', '2D Spatial Frequency Response', 'Position', [150, 150, 600, 500]);
+%     imagesc(angles_deg, f, BPF_NN_Gain_Matrix_dB'); 
+%     set(gca, 'YDir', 'normal'); 
+%     colormap parula; colorbar; caxis([-80 0]); 
+%     xlabel('Angle (Degrees)', 'FontWeight', 'bold');
+%     ylabel('Frequency (Hz)', 'FontWeight', 'bold');
+%     title('DNNBF Spatial Frequency Beampattern',num2str(band_idx), 'FontWeight', 'bold');
+%     ylim([0 fs/2]); 
+% end
+% === 7개 밴드 통합 지향성 패턴 플롯 ===
+figure('Name', 'DNNBF Subband Spatial Frequency Beampatterns', 'Position', [100, 100, 1400, 800]);
+
+% 꼼수 핵심: 2행 12열 매트릭스를 선언하고 칸을 나눠 가집니다.
+% 윗줄 4개 밴드는 각각 3칸씩 (12/4 = 3)
+% 아랫줄 3개 밴드는 각각 4칸씩 (12/3 = 4)
+subplot_indices = {1:3, 4:6, 7:9, 10:12, 13:15, 16:18, 19:21};
+target_ticks = -90:30:90;
+for band_idx = 1:num_bands
+    % 1. 밴드별 데이터 정규화 및 dB 변환
     BPF_NN_Gain_Matrix_dB = 20 * log10(BPF_NN_Gain_Matrix{1,band_idx} / max(BPF_NN_Gain_Matrix{1,band_idx},[],"all"));
-    figure('Name', '2D Spatial Frequency Response', 'Position', [150, 150, 600, 500]);
+    
+    % 2. 🚨 핵심: 2행 12열 그리드에서 지정된 인덱스 묶음을 호출하여 서브플롯 생성
+    subplot(2, 12, subplot_indices{band_idx});
+    
+    % 3. 이미지 출력
     imagesc(angles_deg, f, BPF_NN_Gain_Matrix_dB'); 
     set(gca, 'YDir', 'normal'); 
-    colormap parula; colorbar; caxis([-80 0]); 
-    xlabel('Angle (Degrees)', 'FontWeight', 'bold');
-    ylabel('Frequency (Hz)', 'FontWeight', 'bold');
-    title('DNNBF Spatial Frequency Beampattern',num2str(band_idx), 'FontWeight', 'bold');
+    colormap parula; colorbar; caxis([-60 0]); 
+    
+set(gca, 'XTick', target_ticks);          % 눈금 위치를 -90, -60, -30, 0, 30, 60, 90으로 고정
+    set(gca, 'XTickLabel', target_ticks);     % 생략 없이 해당 숫자를 그대로 텍스트로 출력
+    % 4. 라벨 및 타이틀 세팅 (가독성을 위해 폰트크기 조절)
+    xlabel('Angle (Deg)', 'FontSize', 9);
+    ylabel('Freq (10kHz)', 'FontSize', 9);
+    title(['Band ', num2str(band_idx)], 'FontWeight', 'bold', 'FontSize', 11);
     ylim([0 fs/2]); 
 end
-
 fprintf("DSBF max dB: %5.4f \n", max(DS_Gain_Matrix_dB(:)));
 fprintf("NNBF max dB: %5.4f \n", max(NN_Gain_Matrix_dB(:)));
 
 %%
 % [수정] SI-SDR 등 평가 지표 매칭 보정
-s = cell2mat(directivity_target(centered_mic_num, 1));
+s = cell2mat(test_signal(centered_mic_num, 1));
 L = length(s);
-so=cell2mat(directivity_target(:,centered_0_ongen)');
+so=cell2mat(test_signal(:,1)');
 saishuonsei=sum(so,2);
 DS_s_hat = saishuonsei(1:L, :);%+shifts(centered_mic_num)
 
@@ -201,7 +228,8 @@ fprintf('        [ %s ] 빔포밍 성능 분석 결과 \n', datestr(now, 'HH:MM:
 fprintf('======================================================\n');
 fprintf(' Metric |   DAS (Baseline)   |   NN (Proposed)    \n');
 fprintf('------------------------------------------------------\n');
-fprintf(' SI-SDR |    %10.4f dB   |    %10.4f dB   \n', DS_SI_SDR, NN_SI_SDR);
+fprintf([' SI-SDR |    %10' ...
+    '.4f dB   |    %10.4f dB   \n'], DS_SI_SDR, NN_SI_SDR);
 fprintf(' SI-SIR |    %10.4f dB   |    %10.4f dB   \n', DS_SI_SIR, NN_SI_SIR);
 fprintf(' SI-SAR |    %10.4f dB   |    %10.4f dB   \n', DS_SI_SAR, NN_SI_SAR);
 fprintf('------------------------------------------------------\n');

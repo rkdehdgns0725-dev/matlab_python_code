@@ -2,6 +2,10 @@
 num_bands = length(fc)+1;
 % 7개 네트워크를 위한 최상위 셀 생성 (net_1 ~ net_7 용도)
 train_subbands = cell(num_bands, 1); 
+deg_in = -90:10:90; % 10도 간격의 스캔 각도
+N = 1;            % 논문에서 제안한 최적의 지향성 계수 N (1.5, 2, 3 등 사용)
+
+
 
 for b = 1:num_bands
     % 각 밴드별로 19개 각도의 [N x 8] 행렬을 담을 임시 저장소
@@ -55,16 +59,8 @@ for band_idx = 1:num_bands
         % a는 [N(샘플수) x 8(채널)] 행렬
         a = train_subbands{band_idx}{1, angle_idx}; 
         
-        % ----------------------------------------------------
-        % [핵심] 교사 데이터(Target) Y 생성 로직 (나카지마 방식)
-        % ----------------------------------------------------
-        if angle_idx == 10 % 0도 (정면 타겟 방향)
-            weight = 1.0; 
-        else               % 타겟 이외의 방향 (노이즈)
-            weight = 0.0001; % -80dB
-            % weight = 10^(-20/20); % 만약 특정 감쇄(예: -20dB)를 줄 경우
-        end
-        
+        weight = (1/N)^(abs(deg_in(angle_idx))/10);% y = (1/N)^(|deg|/10)
+
         % 8채널 중 '센터 마이크'의 신호만 뽑아서 가중치 적용 -> [N x 1]
         y = a(:, center_mic) * weight; 
         
@@ -157,7 +153,7 @@ for band_idx = 1:num_bands
 end
 
 disp('✅ 7개 밴드 네트워크 학습 모두 완료!');
-save('NNBF_learningdata_subband_v3','networks','global_max')
+save('NNBF_learningdata_subandsoft_N1','networks','global_max')
 %%
 %global max를 없애고, 각 밴드별 max값으로 구하면 괜찮지않냐
 %6번 7번밴드만 RMSE천천히 줄어드는게 이유가 있지않을까... 주파수대역이 넓어서 정보도 많나?

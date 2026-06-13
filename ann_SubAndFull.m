@@ -50,6 +50,28 @@ for band_idx = 1:num_bands
     % [중요] 밴드가 바뀔 때마다 학습 데이터 초기화
     X_train_concat = []; 
     Y_train_concat = []; 
+    for angle_idx = 1:19
+        % a는 [N(샘플수) x 8(채널)] 행렬
+        %a = train_subbands{band_idx}{1, angle_idx}; 
+        fullband = t_sound_rir_conv_source_8_18(:,angle_idx);
+        fullband=cell2mat(fullband');
+        % ----------------------------------------------------
+        % [핵심] 교사 데이터(Target) Y 생성 로직 (나카지마 방식)
+        % ----------------------------------------------------
+        if angle_idx == 10 % 0도 (정면 타겟 방향)
+            weight = 1.0; 
+        else               % 타겟 이외의 방향 (노이즈)
+            weight = 0.0001; % 0 데이터 학습일 경우
+            % weight = 10^(-20/20); % 만약 특정 감쇄(예: -20dB)를 줄 경우
+        end
+        
+        % 8채널 중 '센터 마이크'의 신호만 뽑아서 가중치 적용 -> [N x 1]
+        y = fullband(:, center_mic) * weight; 
+        
+        % 세로로 데이터 누적 (시간 축으로 길게 이어붙임)
+        X_train_concat = [X_train_concat; fullband]; 
+        Y_train_concat = [Y_train_concat; y]; 
+    end
     
     for angle_idx = 1:19
         % a는 [N(샘플수) x 8(채널)] 행렬
@@ -162,3 +184,10 @@ save('NNBF_learningdata_subband_v3','networks','global_max')
 %global max를 없애고, 각 밴드별 max값으로 구하면 괜찮지않냐
 %6번 7번밴드만 RMSE천천히 줄어드는게 이유가 있지않을까... 주파수대역이 넓어서 정보도 많나?
 %leakageRelulayer를 없애고 Relu로 다시 해봤을떄 어떻게나오는지 확인하기
+
+
+
+
+
+
+

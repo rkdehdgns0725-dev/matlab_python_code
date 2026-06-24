@@ -179,6 +179,7 @@ for band_idx = 1:num_bands
 end
 
 disp('✅ 7개 밴드 네트워크 학습 모두 완료!');
+
 save('NNBF_learningdata_subband_v3','networks','global_max')
 %%
 %global max를 없애고, 각 밴드별 max값으로 구하면 괜찮지않냐

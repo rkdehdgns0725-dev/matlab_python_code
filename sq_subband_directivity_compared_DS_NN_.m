@@ -1,4 +1,4 @@
-% load('NNBF_learningdata_subandsoft_N2.5version_2.mat')%rt60_noise
+% load('sequence_NNBF_learningdata_N1.5version_1.mat')%rt60_noise
 centered_mic_num=5;
 directivity_target=noise_rir_conv_source;%각도별로 재생할 음원
 % directivity_target=t_sound_rir_conv_source_8_18;%각도별로 재생할 음원
@@ -13,15 +13,26 @@ test_signal = gouseionseibako(:,1) ;
 
 bpsig_to_net=BPFilt_viaLPF(test_signal,fs,fc,lpf,N,1);
 
-tl=length(bpsig_to_net{1,1});%신호길이
+tl = length(bpsig_to_net{1,1}); % 신호 길이
+subband_saishu_onsei = zeros(tl, num_bands); % 서브밴드 처리된 음성 저장용 [N x 7]
 
-subband_saishu_onsei=zeros(tl,num_bands);%서브밴드 처리된 음성저장용
-for band_idx=1:num_bands %지금 상태에선 2~4번밴드만 합쳤을 때 가장 성능이 좋은거같다?
-    %  🚨 불러온 data_max로 정규화 수행
-    test_input_norm=bpsig_to_net{1,band_idx}/ global_max{band_idx};
-    max(test_input_norm,[],"all")
-    subband_saishu_onsei(:,band_idx)=predict(networks{band_idx},test_input_norm)*global_max{band_idx};
-
+for band_idx = 1:num_bands
+    % 1. 해당 밴드 데이터 가져오기 및 정규화 [N x 8]
+    test_input_norm = bpsig_to_net{1,band_idx} / global_max{band_idx};
+    
+    % 2. 🚨 [핵심 수정] 시퀀스 모델 규격에 맞게 전치 후 '셀 배열'로 포장
+    % [N x 8] -> [8 x N] -> 셀 배열 래핑 { [8 x N] }
+    test_input_cell = { test_input_norm' };
+    
+    % 3. predict 수행 (결과물은 {[1 x N]} 형태의 셀 배열로 나옵니다)
+    predicted_cell = predict(networks{band_idx}, test_input_cell);
+    
+    % 4. 🚨 [핵심 수정] 셀 내용물을 꺼내서 다시 세로 방향 [N x 1] 열벡터로 변환
+    % predicted_cell{1} 은 [1 x N] 행벡터이므로, 뒤에 전치(')를 붙여 세로로 세웁니다.
+    predicted_signal = predicted_cell{1}'; 
+    
+    % 5. 스케일 복원 후 서브밴드 행렬에 꽂아 넣기 [N x 1]
+    subband_saishu_onsei(:, band_idx) = predicted_signal * global_max{band_idx};
 end
 clean_audio=sum(subband_saishu_onsei,2);
 
@@ -100,15 +111,13 @@ ylim([0 fs/2]); % 타겟 주파수 대역
 % --- 3. 주파수 대역 및 각도별 3D 지향성 패턴 (Beampattern) 분석 ---
 % =========================================================================
 disp('3D 공간 주파수 지향성 패턴을 계산 중입니다...');
-
 NN_sample_len = length(directivity_target{1, 1}); 
 num_freq_bins = floor(NN_sample_len/2) + 1;
 
-% [수정] 전체 대역용 행렬과 밴드별 행렬을 독립적으로 분리하여 초기화
 NN_Gain_Matrix = zeros(num_sources, num_freq_bins); 
 BPF_NN_Gain_Matrix = cell(1, num_bands);
 for b = 1:num_bands
-    BPF_NN_Gain_Matrix{b} = zeros(num_sources, num_freq_bins); % 각 셀에 독립된 행렬 배치
+    BPF_NN_Gain_Matrix{b} = zeros(num_sources, num_freq_bins); 
 end
 
 % 1번부터 19번 각도까지 루프 구동
@@ -120,15 +129,22 @@ for angle_idx = 1:num_sources
     
     dna_scan = BPFilt_viaLPF(dna_scan', fs, fc, lpf, N, 0);
     
-    % [핵심 수정] 현재 각도에서 7개 밴드의 시간 신호를 누적할 벡터 준비
+    % 현재 각도에서 7개 밴드의 시간 신호를 누적할 벡터 준비
     steered_fullband = zeros(NN_sample_len, 1);
     
     for band_idx = 1:num_bands
-        % 네트워크를 통한 각도별 신호 추정 및 스케일 복원 [N x 1]
-        steered_subband = predict(networks{band_idx}, dna_scan{1,band_idx}/global_max{band_idx,1});
+        % 🚨 [차원 전처리] 정규화 및 [N x 8] -> [8 x N] 전치 후 셀 배열화
+        subband_input_norm = dna_scan{1,band_idx} / global_max{band_idx,1};
+        subband_input_cell = { subband_input_norm' };
+        
+        % 🚨 [예측 및 차원 후처리] 셀 출력 {[1 x N]} 을 다시 세로형 [N x 1] 벡터로 복원
+        steered_subband_cell = predict(networks{band_idx}, subband_input_cell);
+        steered_subband = steered_subband_cell{1}'; 
+        
+        % 스케일 원복
         steered_subband = global_max{band_idx,1} * steered_subband;
         
-        % 시간 영역에서 전체 대역 신호로 누적 (위에서 소리 들을 때 sum한 것과 동일)
+        % 시간 영역에서 전체 대역 신호로 누적
         steered_fullband = steered_fullband + steered_subband;
         
         % --- 밴드별 독립적인 FFT 및 게인 저장 ---
@@ -138,23 +154,18 @@ for angle_idx = 1:num_sources
         P1_sub = P2_sub(1:num_freq_bins);
         P1_sub(2:end-1) = 2 * P1_sub(2:end-1);
         
-        % [해결] 밴드별 전용 셀 행렬의 현재 각도(행)에 대입
-        BPF_NN_Gain_Matrix{band_idx}(angle_idx, :) = P1_sub(:)';%19xN
+        BPF_NN_Gain_Matrix{band_idx}(angle_idx, :) = P1_sub(:)'; % 19 x num_freq_bins
     end
     
-    % --- [해결] 7개 밴드가 모두 합쳐진 Full-band 신호에 대해 FFT 수행 ---
+    % --- 7개 밴드가 모두 합쳐진 Full-band 신호에 대해 FFT 수행 ---
     fft_nnsig = fft(steered_fullband);
     P2 = abs(fft_nnsig / NN_sample_len);
     P1 = P2(1:num_freq_bins);
     P1(2:end-1) = 2 * P1(2:end-1);
     
-    % 전체 대역 지향성 매트릭스에 대입
     NN_Gain_Matrix(angle_idx, :) = P1(:)'; 
-    
-    % 기존 RMS 에너지 계산 유지
     output_energy(angle_idx) = rms(steered_fullband);
 end
-
 % --- 루프가 끝난 후 3D 플로팅 데이터 준비 ---
 f = fs * (0:(num_freq_bins-1)) / NN_sample_len; 
 NN_Gain_Matrix_dB = 20 * log10(NN_Gain_Matrix / max(NN_Gain_Matrix(:)));

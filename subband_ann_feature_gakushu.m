@@ -128,6 +128,7 @@ for band_idx = 1:num_bands
         ValidationData={X_val, Y_val}, ... % 검증 데이터 지정
         ValidationFrequency = floor((size(X_train_final, 1)/bc)/VF), ...      % 몇 번의 이터레이션마다 검증할지 (데이터 크기에 맞게 조절)
         ValidationPatience = 5,  ...          % 검증 Loss가 5회 연속 안 떨어지면 조기 종료 (Early Stopping)
+        OutputNetwork = 'best-validation-loss', ... % 검증 로스가 최소가 되는지점의 값을 반환
         Verbose=0);
 
 
@@ -159,6 +160,4 @@ end
 disp('✅ 7개 밴드 네트워크 학습 모두 완료!');
 save('NNBF_learningdata_subband_v3','networks','global_max')
 %%
-%global max를 없애고, 각 밴드별 max값으로 구하면 괜찮지않냐
-%6번 7번밴드만 RMSE천천히 줄어드는게 이유가 있지않을까... 주파수대역이 넓어서 정보도 많나?
 %leakageRelulayer를 없애고 Relu로 다시 해봤을떄 어떻게나오는지 확인하기

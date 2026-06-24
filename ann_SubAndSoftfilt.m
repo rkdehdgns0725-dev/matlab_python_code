@@ -3,8 +3,8 @@ num_bands = length(fc)+1;
 % 7개 네트워크를 위한 최상위 셀 생성 (net_1 ~ net_7 용도)
 train_subbands = cell(num_bands, 1); 
 deg_in = -90:10:90; % 10도 간격의 스캔 각도
-N = 1;            % 논문에서 제안한 최적의 지향성 계수 N (1.5, 2, 3 등 사용)
-
+N = 2;            % 논문에서 제안한 최적의 지향성 계수 N (1.5, 2, 3 등 사용)
+version=2;
 
 
 for b = 1:num_bands
@@ -124,6 +124,7 @@ for band_idx = 1:num_bands
         ValidationData={X_val, Y_val}, ... % 검증 데이터 지정
         ValidationFrequency = floor((size(X_train_final, 1)/bc)/VF), ...      % 몇 번의 이터레이션마다 검증할지 (데이터 크기에 맞게 조절)
         ValidationPatience = 5,  ...          % 검증 Loss가 5회 연속 안 떨어지면 조기 종료 (Early Stopping)
+        OutputNetwork = 'best-validation-loss', ... % 검증 로스가 최소가 되는지점의 값을 반환
         Verbose=0);
 
 
@@ -153,7 +154,8 @@ for band_idx = 1:num_bands
 end
 
 disp('✅ 7개 밴드 네트워크 학습 모두 완료!');
-save('NNBF_learningdata_subandsoft_N1','networks','global_max')
+file_name=['NNBF_learningdata_subandsoft_N',num2str(N),'version_',num2str(version),'.mat'];
+save(file_name,'networks','global_max')
 %%
 %global max를 없애고, 각 밴드별 max값으로 구하면 괜찮지않냐
 %6번 7번밴드만 RMSE천천히 줄어드는게 이유가 있지않을까... 주파수대역이 넓어서 정보도 많나?

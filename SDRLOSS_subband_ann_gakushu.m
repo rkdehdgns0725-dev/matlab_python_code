@@ -3,12 +3,22 @@ num_bands = length(fc)+1;
 % 7개 네트워크를 위한 최상위 셀 생성 (net_1 ~ net_7 용도)
 train_subbands = cell(num_bands, 1); 
 deg_in = -90:10:90; % 10도 간격의 스캔 각도
-N_step = 1.5:0.5:3;            % 논문에서 제안한 최적의 지향성 계수 N (1.5, 2, 3 등 사용)
+N_step = 1.5:0.5:2;            % 논문에서 x제안한 최적의 지향성 계수 N (1.5, 2, 3 등 사용)
 version=6;
-threshold_dB=-80%dB
+anycomment='sdr+0.1rmse+softfilt+clipping+동적계수'
+bc=2048;
 
+        
+learning = 100;
+maxEpochs = learning;     %エポック数（学習回数）                      <------ 学習回数
+        
+inputSize = num_mics;      %入力数
+outputSize = 256;  %中間層のユニット数                       <-------隠れユニット数 
+numResponses = 1;   %全結合層の出力層
+        
+VF=4;
 
-for N=1.5
+for N=2.0
     for b = 1:num_bands
         % 각 밴드별로 19개 각도의 [N x 8] 행렬을 담을 임시 저장소
         angle_cell = cell(1, num_sources); 
@@ -53,82 +63,82 @@ for N=1.5
     for band_idx = 1:num_bands
         fprintf('==== %d번 밴드 네트워크 데이터 구성 및 학습 ====\n', band_idx);
         
-        % 1. 학습/검증 데이터 누적 버퍼 초기화
+        % [중요] 밴드가 바뀔 때마다 학습 데이터 초기화
         X_train_concat = []; 
-        Y_train_concat = [];
-        X_val_concat   = [];
-        Y_val_concat   = [];
+        Y_train_concat = []; 
         
         for angle_idx = 1:19
+            % a는 [N(샘플수) x 8(채널)] 행렬
             a = train_subbands{band_idx}{1, angle_idx}; 
-            weight = (1/N)^(abs(deg_in(angle_idx))/10);
-            if weight<10^(threshold_dB/20)
-                weight = 10^(threshold_dB/20);%-80dB
-            end
+            
+            weight = (1/N)^(abs(deg_in(angle_idx))/10);% y = (1/N)^(|deg|/10)
+    
+            % 8채널 중 '센터 마이크'의 신호만 뽑아서 가중치 적용 -> [N x 1]
             y = a(:, center_mic) * weight; 
             
-            % [핵심 수정] 각 각도별 신호 길이를 기준으로 9:1 시간축 분할
-            num_samples = size(a, 1);
-            val_split_idx = floor(num_samples * 0.9);
-            
-            % 학습용: 앞부분 90%
-            X_train_concat = [X_train_concat; a(1:val_split_idx, :)]; 
-            Y_train_concat = [Y_train_concat; y(1:val_split_idx, :)]; 
-            
-            % 검증용: 뒷부분 10% (모든 각도의 뒷부분이 고르게 수집됨)
-            X_val_concat   = [X_val_concat;   a(val_split_idx+1:end, :)];
-            Y_val_concat   = [Y_val_concat;   y(val_split_idx+1:end, :)];
+            % 세로로 데이터 누적 (시간 축으로 길게 이어붙임)
+            X_train_concat = [X_train_concat; a]; 
+            Y_train_concat = [Y_train_concat; y]; 
         end
         
-        % 2. 정규화 파라미터 계산 (학습 데이터 기준 권장, 또는 전체 데이터 기준)
-        band_max = max(abs(X_train_concat), [], 'all');
+        % [중요] 매트랩 Sequence 학습을 위해 차원 뒤집기
+        % X: [총 샘플수 x 8] -> [8 x 총 샘플수]
+        % Y: [총 샘플수 x 1] -> [1 x 총 샘플수]
+        band_max = max(abs(X_train_concat), [], 'all'); 
         if band_max == 0; band_max = 1; end % 0 나누기 방지
-
-
-        % 3. 학습 및 검증 데이터 동시 정규화
+        
         X_train_final = X_train_concat / band_max; 
         Y_train_final = Y_train_concat / band_max;
+        chunkSize = bc; % 미니배치 크기 2048 고정
         
-        X_val = X_val_concat / band_max;
-        Y_val = Y_val_concat / band_max;
+        % 1. 자투리 샘플을 버리고 전체 데이터를 정확히 2048의 배수로 클리핑
+        numChunksTotal = floor(size(X_train_final, 1) / chunkSize);
+        X_trimmed = X_train_final(1:numChunksTotal*chunkSize, :);
+        Y_trimmed = Y_train_final(1:numChunksTotal*chunkSize, :);
         
-        % (이하 모델 구성 및 trainNetwork 코드...)        % chunkSize = 100; % 미니배치 사이즈와 맞추면 좋습니다
-        % 
-        % % 데이터를 [8 x 총샘플수]에서 [8 x chunkSize] 조각들로 쪼갭니다.
-        % % mat2cell은 지정된 길이로 행렬을 싹둑 자릅니다.
-        % numChunks = floor(size(X_train_final, 2) / chunkSize);
-        % X_cell = mat2cell(X_train_final(:, 1:numChunks*chunkSize), 8, chunkSize*ones(1, numChunks))';
-        % Y_cell = mat2cell(Y_train_final(:, 1:numChunks*chunkSize), 1, chunkSize*ones(1, numChunks))';
-        % % ----------------------------------------------------
-        % 네트워크 레이어 설정 및 학습
-        % ----------------------------------------------------
+        % 2. 3차원 텐서로 변환하여 2048개 샘플씩 연속성을 보존한 채 묶음
+        X_reshape = permute(reshape(X_trimmed, chunkSize, numChunksTotal, inputSize),[1, 3, 2]);
+        Y_reshape = permute(reshape(Y_trimmed, chunkSize, numChunksTotal,1),[1,3,2]);
+       
+        % 3. 🚨 [핵심] 청크 조각들의 순서를 무작위로 셔플하여 전 각도(-90~90도)를 뒤섞음
+        rng(42); % 실험 재현성 시드 고정
+        shuffledChunkIdx = randperm(numChunksTotal);
+        X_reshape = X_reshape(:, :, shuffledChunkIdx);
+        Y_reshape = Y_reshape(:, :, shuffledChunkIdx);
+        
+        % 4. 9:1 비율로 청크 개수를 분할 계산
+        valStartChunk = floor(numChunksTotal * 0.9) + 1;
+        
+        % 90%는 훈련 청크 방에 격납
+        X_train_chunk = X_reshape(:, :, 1:valStartChunk-1);
+        Y_train_chunk = Y_reshape(:, :, 1:valStartChunk-1);
+        
+        % 10%는 검증 청크 방에 격납 (이제 모든 각도가 이 안에 골고루 섞임!)
+        X_val_chunk = X_reshape(:, :, valStartChunk:end);
+        Y_val_chunk = Y_reshape(:, :, valStartChunk:end);
+        
+        % 5. trainNetwork가 정상 공급받을 수 있도록 각각 2D 행렬 형태로 최종 복원
+        X_train_final = reshape(X_train_chunk, [], inputSize);
+        Y_train_final = reshape(Y_train_chunk, [], 1);
+        
+        X_val = reshape(X_val_chunk, [], inputSize);
+        Y_val = reshape(Y_val_chunk, [], 1);
         % =========================================================================
         % [수정본] 직관적인 원본 데이터를 7개의 네트워크 학습용 구조로 재배치
         % =========================================================================
-        
-        
-        learning = 100;
-        maxEpochs = learning;     %エポック数（学習回数）                      <------ 学習回数
-        maxEpochs2 = learning;
-        
-        inputSize = num_mics;      %入力数
-        outputSize = 256;  %中間層のユニット数                       <-------隠れユニット数 
-        numResponses = 1;   %全結合層の出力層
-        
-        bc=2048;
-        VF=4;
+
         % === Ttrainnet ===%
         options = trainingOptions("adam", ... 
             InitialLearnRate = 0.001, ... % 正規化されているので高めでもOK
             MaxEpochs = maxEpochs, ...
             miniBatchSize = bc, ...    
-            GradientThreshold = 1, ...
+            GradientThreshold = Inf, ...
             Plots="training-progress", ...
-            Shuffle = 'every-epoch', ...
+            Shuffle = 'never', ...
             ExecutionEnvironment = "auto", ...
             ValidationData={X_val, Y_val}, ... % 검증 데이터 지정
-            ValidationFrequency = floor((size(X_train_final, 1)/bc)/VF), ...      % 몇 번의 이터레이션마다 검증할지 (데이터 크기에 맞게 조절)
-            ValidationPatience = 10,  ...          % 검증 Loss가 5회 연속 안 떨어지면 조기 종료 (Early Stopping)
+            ValidationFrequency = floor((size(X_train_final, 1)/bc)/VF), ... % 몇 번의 이터레이션마다 검증할지 (데이터 크기에 맞게 조절)
+            ValidationPatience = 20,  ...          % 검증 Loss가 5회 연속 안 떨어지면 조기 종료 (Early Stopping)
             OutputNetwork = 'best-validation-loss', ... % 검증 로스가 최소가 되는지점의 값을 반환
             Verbose=0);
     
@@ -146,7 +156,7 @@ for N=1.5
             % ReluLayer
         
             fullyConnectedLayer(numResponses, Bias = 0, BiasLearnRateFactor = 0)
-            regressionLayer('Name', 'rmse_loss')
+            sisdrLossLayer('subband_sisdr_loss')
         ];
         
         % options 설정 (미리 외부에 정의해둔 options 사용)
@@ -159,10 +169,11 @@ for N=1.5
     end
     
     disp('✅ 7개 밴드 네트워크 학습 모두 완료!');
-    file_name=['NNBF_learningdata_subandsoft_N',num2str(N),'version_',num2str(version),'.mat'];
+    file_name=[anycomment,'customizedLoss_NNBF_learningdata_subandsoft_N',num2str(N),'version_',num2str(version),'.mat'];
     save(file_name,'networks','global_max')
     %%
     %global max를 없애고, 각 밴드별 max값으로 구하면 괜찮지않냐
     %6번 7번밴드만 RMSE천천히 줄어드는게 이유가 있지않을까... 주파수대역이 넓어서 정보도 많나?
     %leakageRelulayer를 없애고 Relu로 다시 해봤을떄 어떻게나오는지 확인하기
 end
+

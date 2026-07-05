@@ -1,4 +1,4 @@
-load('sdr+0.1rmse+softfilt+clipping+동적계수customizedLoss_NNBF_learningdata_subandsoft_N2version_6.mat')%rt60_noise
+load('sdr+0.1rmse+softfilt+clipping+동적계수customizedLoss_NNBF_learningdata_subandsoft_N1version_12.mat')%rt60_noise
 centered_mic_num=5;
 directivity_target=noise_rir_conv_source;%각도별로 재생할 음원
 % directivity_target=t_sound_rir_conv_source_8_18;%각도별로 재생할 음원
@@ -21,8 +21,11 @@ for band_idx=1:num_bands %지금 상태에선 2~4번밴드만 합쳤을 때 가�
     test_input_norm=bpsig_to_net{1,band_idx}/ global_max{band_idx};
     max(test_input_norm,[],"all")
     subband_saishu_onsei(:,band_idx)=predict(networks{band_idx},test_input_norm)*global_max{band_idx};
-
+    if isa(subband_saishu_onsei, 'dlarray')
+    subband_saishu_onsei = extractdata(Y_pred_normalized);
+    end
 end
+
 clean_audio=sum(subband_saishu_onsei,2);
 
 
@@ -126,6 +129,9 @@ for angle_idx = 1:num_sources
     for band_idx = 1:num_bands
         % 네트워크를 통한 각도별 신호 추정 및 스케일 복원 [N x 1]
         steered_subband = predict(networks{band_idx}, dna_scan{1,band_idx}/global_max{band_idx,1});
+        if isa(steered_subband, 'dlarray')
+            steered_subband = extractdata(Y_pred_normalized);
+        end
         steered_subband = global_max{band_idx,1} * steered_subband;
         
         % 시간 영역에서 전체 대역 신호로 누적 (위에서 소리 들을 때 sum한 것과 동일)

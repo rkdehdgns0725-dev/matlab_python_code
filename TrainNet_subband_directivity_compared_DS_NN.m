@@ -1,5 +1,9 @@
-load('sdr+0.1rmse+softfilt+clipping+동적계수customizedLoss_NNBF_learningdata_subandsoft_N1version_12.mat')%rt60_noise
+%ONGEN_RIR_TATAMIKOMI부터 실행할 것
+
+load('sdr+0.1rmse+softfilt+clipping+동적계수customizedLoss_NNBF_learningdata_subandsoft_N1.5version_13')%rt60_noise
+
 centered_mic_num=5;
+num_bands = length(fc)+1;
 directivity_target=noise_rir_conv_source;%각도별로 재생할 음원
 % directivity_target=t_sound_rir_conv_source_8_18;%각도별로 재생할 음원
 

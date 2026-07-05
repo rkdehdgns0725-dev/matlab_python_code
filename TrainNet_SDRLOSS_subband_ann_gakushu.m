@@ -4,7 +4,7 @@ num_bands = length(fc)+1;
 train_subbands = cell(num_bands, 1); 
 deg_in = -90:10:90; % 10도 간격의 스캔 각도
 N_step = 2.5:0.25:3;            % 논문에서 x제안한 최적의 지향성 계수 N (1.5, 2, 3 등 사용)
-version=12;
+version=13;
 anycomment='sdr+0.1rmse+softfilt+clipping+동적계수'
 bc=2048*4;
 
@@ -18,7 +18,7 @@ numResponses = 1;   %全結合層の出力層
         
 VF=10/5;
 VP=50/5;
-for N=2.5
+for N=1.5
     for b = 1:num_bands
         % 각 밴드별로 19개 각도의 [N x 8] 행렬을 담을 임시 저장소
         angle_cell = cell(1, num_sources); 

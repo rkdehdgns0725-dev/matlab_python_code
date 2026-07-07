@@ -1,6 +1,5 @@
 clc; clear; close all;
-
-version = 15;
+version = 16;
 N = 1.5; % 지향성 계수 (변수명 N에서 변경)
 anycomment = 'sdr+0.1rmse+softfilt+clipping+동적계수';
 
@@ -19,7 +18,7 @@ fc = [500, 1000, 2000, 4000, 8000, 16000]; % LPF 컷오프
 filter_order = 200; % 필터 차수 (변수명 N에서 변경)
 whatis_TandN = ['w', 'b', 'p'];
 num_train_samples = 200; 
-interf_pool = 1:19;
+interf_pool = [1:9,11:19];
 center_mic = 5; 
 
 
@@ -33,7 +32,7 @@ for i = 1:length(fc)
 end
 %% 
 start_time = fs * 10; % 10초부터
-end_time = fs * 15;   % 15초까지 (5초 구간)
+end_time = fs * 12;   % 15초까지 (5초 구간)
 sample_length = end_time - start_time + 1;
 
 num_mics = size(mic_pos, 2);     % 8채널
@@ -57,7 +56,9 @@ brown = dsp.ColoredNoise('Color', 'brown', 'SamplesPerFrame', sample_length, 'Nu
 
 for k = 1:num_train_samples
     num_active_interf = randi([1, 3]); 
-    selected_angles = interf_pool(randperm(length(interf_pool), num_active_interf));
+    random_interf=interf_pool(randperm(length(interf_pool), num_active_interf));
+    selected_angles = [10, random_interf];
+
     TNN = whatis_TandN(randi(numel(whatis_TandN), length(selected_angles), 1));
     
     % 누적합을 위한 초기화
@@ -70,9 +71,13 @@ for k = 1:num_train_samples
         color = TNN(i);
         current_angle_idx = selected_angles(i);
         
-        random_sir_dB = -5 + (10 * rand()); 
-        scaling = 10^(-random_sir_dB / 20);
-        
+        if current_angle_idx == 10
+            scaling = 1.0; 
+        else
+            random_sir_dB = -5 + (10 * rand()); 
+            scaling = 10^(-random_sir_dB / 20);
+        end
+
         switch color    
             case 'w'
                 noise_matrix = randn(sample_length, 1); 
@@ -227,7 +232,7 @@ for band_idx = 1:num_bands
         miniBatchSize = bc, ...    
         GradientThreshold = Inf, ...
         Plots = "training-progress", ...
-        Shuffle = 'every-epoch', ...
+        Shuffle = 'never', ...
         ExecutionEnvironment = "auto", ...
         ValidationData = {X_val, Y_val}, ... 
         ValidationFrequency = floor((size(X_train_final, 1)/bc)/VF), ... 

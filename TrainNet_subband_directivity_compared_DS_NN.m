@@ -1,6 +1,6 @@
 %ONGEN_RIR_TATAMIKOMI부터 실행할 것
 
-load('sdr+0.1rmse+softfilt+clipping+동적계수customizedLoss_NNBF_learningdata_subandsoft_N1.5version_14')%rt60_noise
+% load('sdr+0.1rmse_5sec+softfilt+clipping+동적계수customizedLoss_NNBF_learningdata_subandsoft_N1.5version_15')%rt60_noise
 
 centered_mic_num=5;
 num_bands = length(fc)+1;

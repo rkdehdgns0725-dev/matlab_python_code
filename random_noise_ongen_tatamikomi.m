@@ -1,5 +1,5 @@
 clc; clear; close all;
-version = 16;
+version = 18;
 N = 1.5; % 지향성 계수 (변수명 N에서 변경)
 anycomment = 'sdr+0.1rmse+softfilt+clipping+동적계수';
 

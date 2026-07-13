@@ -48,11 +48,11 @@ persistent cnt
     mse_mean  = mean(mse_batch, 'all');
     
     alpha_weight = 100.0;  
-    beta_decay   = 0.05; 
-    dynamic_mse_weight = max(1.0, alpha_weight * exp(-beta_decay * si_sdr_mean));
+    beta_decay   = 0.1; 
+    dynamic_mse_weight = max(1.0, alpha_weight * exp(-beta_decay * sdr_mean));%sisdr
     
     % 3. 최종 하이브리드 로스 (-SI_SDR 최소화 + MSE 페널티)
-    loss = -si_sdr_mean + (dynamic_mse_weight .* mse_mean);
+    loss = -sdr_mean + (dynamic_mse_weight .* mse_mean);%sisdr
     loss = stripdims(loss); 
     
     % 4. 500 이터레이션마다 정보 출력 (SDR 추가)

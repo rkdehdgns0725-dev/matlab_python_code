@@ -1,5 +1,7 @@
 clc; clear; close all;
-version = 18;
+rng(42); 
+
+version = 19;
 N = 1.5; % 지향성 계수 (변수명 N에서 변경)
 anycomment = 'sdr+0.1rmse+softfilt+clipping+동적계수';
 
@@ -140,7 +142,7 @@ fprintf('다중 혼합 데이터 및 타겟 데이터 필터링 완료!\n');
 bc = 2048 * 4;
 maxEpochs = 500;
 inputSize = num_mics;      
-outputSize = 256;  
+outputSize = 1024;  
 numResponses = 1;   
 VF = 10/5;
 VP = 50/5;
@@ -178,7 +180,6 @@ for band_idx = 1:num_bands
     
     % 훈련/검증 분할 (8:2 셔플)
     numChunksTotal = floor(size(X_train_concat, 1) / chunkSize);
-    rng(42); 
     shuffledChunkIdx = randperm(numChunksTotal);
     
     valStartChunk = floor(numChunksTotal * 0.8) + 1;
@@ -223,6 +224,8 @@ for band_idx = 1:num_bands
         leakyReluLayer(0.01)
         fullyConnectedLayer(outputSize/2)
         leakyReluLayer(0.01)
+        fullyConnectedLayer(outputSize/4)
+        leakyReluLayer(0.01)
         fullyConnectedLayer(numResponses, Bias = 0, BiasLearnRateFactor = 0)
     ];
     
@@ -232,7 +235,7 @@ for band_idx = 1:num_bands
         miniBatchSize = bc, ...    
         GradientThreshold = Inf, ...
         Plots = "training-progress", ...
-        Shuffle = 'never', ...
+        Shuffle = 'every-epoch', ...
         ExecutionEnvironment = "auto", ...
         ValidationData = {X_val, Y_val}, ... 
         ValidationFrequency = floor((size(X_train_final, 1)/bc)/VF), ... 
